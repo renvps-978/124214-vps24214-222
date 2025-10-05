@@ -5,14 +5,8 @@ echo "🔹 Starting Shellinabox..."
 sleep 3
 
 echo "🔹 Starting Cloudflare Tunnel..."
-cloudflared tunnel --url http://localhost:4200 --no-autoupdate > /root/tunnel.log 2>&1 &
+# Chạy trực tiếp để log hiện ra stdout
+cloudflared tunnel --url http://localhost:4200 --no-autoupdate --metrics localhost:0 2>&1 | tee /root/tunnel.log | awk '/trycloudflare.com/ {print "🌍 Tunnel URL: "$NF; fflush()}'
 
-sleep 5
-
-echo "🔹 Tunnel is running!"
-echo "========================================"
-grep -m 1 "trycloudflare.com" /root/tunnel.log
-echo "========================================"
-
-# Giữ container chạy mãi
+# Giữ container sống mãi
 tail -f /dev/null
