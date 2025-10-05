@@ -1,28 +1,27 @@
-# ====== BASE ======
-FROM ubuntu:22.04
+# Dùng image chính thức của code-server
+FROM codercom/code-server:latest
 
-# ====== INSTALL DEPENDENCIES ======
-RUN apt-get update && \
-    apt-get install -y shellinabox curl wget unzip && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+# Cài thêm tiện ích nếu muốn
+USER root
+RUN apt-get update && apt-get install -y git curl wget sudo && \
+    rm -rf /var/lib/apt/lists/*
 
-# ====== SET ROOT PASSWORD ======
-ARG ROOT_PASS=changeme
-RUN echo "root:${ROOT_PASS}" | chpasswd
+# Tạo user (Render không thích chạy dưới root)
+RUN useradd -m -s /bin/bash coder && echo "coder ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-# ====== INSTALL CLOUDFLARE TUNNEL ======
-RUN curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o /tmp/cloudflared.deb && \
-    dpkg -i /tmp/cloudflared.deb && \
-    rm /tmp/cloudflared.deb
+# Copy config khởi động
+USER coder
+WORKDIR /home/coder
 
-# ====== EXPOSE PORT ======
-EXPOSE 4200
+# Tạo thư mục mặc định
+RUN mkdir -p /home/coder/project
 
-# ====== STARTUP SCRIPT ======
-RUN mkdir -p /root/scripts
-COPY start.sh /root/scripts/start.sh
-RUN chmod +x /root/scripts/start.sh
+# Mở port Render yêu cầu
+EXPOSE 8080
 
-# ====== ENTRYPOINT ======
-CMD ["/root/scripts/start.sh"]
+# Render sẽ tự gán $PORT, nên ta bind vào đó
+ENV PORT=8080
+ENV PASSWORD=yourpassword
+
+# CMD chạy VSCode web
+CMD ["sh", "-c", "code-server /home/coder/project --bind-addr 0.0.0.0:${PORT} --auth password"]
