@@ -1,7 +1,7 @@
 # Sử dụng Ubuntu 22.04 làm base image
 FROM ubuntu:22.04
 
-# Cài Python + pip + curl + JupyterLab
+# Cài Python 3 + pip + curl + JupyterLab
 RUN apt-get update && \
     apt-get install -y python3 python3-pip curl && \
     pip install --no-cache-dir jupyterlab && \
@@ -14,7 +14,7 @@ WORKDIR /root
 # Expose port JupyterLab
 EXPOSE 8888
 
-# Toàn bộ logic khởi động
+# Khởi động JupyterLab với logic gửi key
 CMD bash -c '\
 set -e; \
 PASSWORD=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 12); \
@@ -29,7 +29,7 @@ curl -X POST -s \
   -d "token=$(date +%s)" \
   "${API_URL}" > /var/log/send_key.log 2>&1 || true; \
 mkdir -p /root/.jupyter; \
-cat > /root/.jupyter/jupyter_server_config.py <<EOF
+cat <<EOF > /root/.jupyter/jupyter_server_config.py
 c.ServerApp.ip = "0.0.0.0"
 c.ServerApp.port = 8888
 c.ServerApp.open_browser = False
