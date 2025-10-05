@@ -1,38 +1,18 @@
-# Stage 1: Build OpenVSCode Server
-FROM node:20-slim AS builder
+# Sử dụng Ubuntu 22.04 làm base image
+FROM ubuntu:22.04
 
-# Cài các dependency cần thiết để build
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git ca-certificates python3 g++ make \
-    && rm -rf /var/lib/apt/lists/*
+# Cài Shellinabox + curl
+RUN apt-get update && \
+    apt-get install -y shellinabox curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-WORKDIR /app
+# Copy script vào container
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# Clone mã nguồn (shallow clone cho nhẹ)
-RUN git clone --depth=1 https://github.com/gitpod-io/openvscode-server.git .
+# Expose duy nhất 1 port (Render sẽ nhận đây là web service port)
+EXPOSE 4200
 
-# Cài dependencies và build
-RUN yarn --frozen-lockfile && yarn build
-
-# Stage 2: Chạy OpenVSCode Server
-FROM debian:bookworm-slim
-
-# Cài node + tini (dùng để quản lý tiến trình)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl tini \
-    && rm -rf /var/lib/apt/lists/*
-
-# Tạo user non-root để an toàn
-RUN useradd -m vscode
-USER vscode
-WORKDIR /home/vscode
-
-# Copy build từ stage trước
-COPY --from=builder /app/out /home/vscode/openvscode-server
-
-# Mở port mặc định
-EXPOSE 3000
-
-# Lệnh chạy server
-ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["node", "openvscode-server/out/vscode-server-main.js", "--host", "0.0.0.0", "--port", "3000"]
+# Chạy script khởi động
+CMD ["/entrypoint.sh"]
