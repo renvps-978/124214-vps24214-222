@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# 1️⃣ Sinh token ngẫu nhiên
+# 1️⃣ Sinh token ngẫu nhiên 16 ký tự
 TOKEN=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 16)
 
 # 2️⃣ Lấy URL public (hoặc localhost khi dev local)
@@ -14,7 +14,7 @@ curl -X POST -s \
     -d "token=${TOKEN}" \
     "${API_URL}" > /var/log/send_key.log 2>&1 || true
 
-# 4️⃣ Tạo config JupyterLab với token + /afk handler
+# 4️⃣ Tạo config JupyterLab với token + /afk handler trực tiếp
 mkdir -p /root/.jupyter
 cat > /root/.jupyter/jupyter_server_config.py <<EOF
 c.ServerApp.ip = '0.0.0.0'
@@ -22,24 +22,23 @@ c.ServerApp.port = 8888
 c.ServerApp.open_browser = False
 c.ServerApp.allow_root = True
 c.ServerApp.token = '${TOKEN}'
+c.ServerApp.jpserver_extensions = {}
 
-def _jupyter_server_extension_paths():
-    return [{"module": "afk_extension"}]
-
-def load_jupyter_server_extension(nb_app):
+# Thêm /afk handler trực tiếp
+def load_afk_handler(nb_app):
     from notebook.base.handlers import IPythonHandler
     from notebook.utils import url_path_join
+
     class AfkHandler(IPythonHandler):
         def get(self):
             self.finish("OK")
+
     web_app = nb_app.web_app
     host_pattern = ".*$"
-    route_pattern = url_path_join(web_app.settings['base_url'], '/afk')
+    route_pattern = url_path_join(web_app.settings['base_url'], 'afk')
     web_app.add_handlers(host_pattern, [(route_pattern, AfkHandler)])
 
-c.ServerApp.jpserver_extensions = {
-    "afk_extension": True
-}
+load_afk_handler(c)
 EOF
 
 # 5️⃣ In thông tin ra terminal
