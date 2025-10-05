@@ -1,12 +1,12 @@
-FROM ubuntu:22.04
+FROM node:22-alpine
 
-RUN apt-get update && apt-get install -y curl nodejs npm && \
-    npm install -g code-server && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache git bash && \
+    npm install -g code-server
 
-ENV PASSWORD=123456
+WORKDIR /root/project
 ENV PORT=8080
+ENV PASSWORD=123456
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "code-server --bind-addr 0.0.0.0:${PORT} --auth password"]
+CMD ["sh", "-c", "code-server /root/project --bind-addr 0.0.0.0:${PORT} --auth password"]
