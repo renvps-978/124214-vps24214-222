@@ -1,28 +1,18 @@
-# === Base image: Ubuntu 22.04 ===
+# Sử dụng Ubuntu 22.04 làm base image
 FROM ubuntu:22.04
 
-# === Cài Python 3.12, pip, curl, tini và các tiện ích cơ bản ===
+# Cài Python + pip + JupyterLab
 RUN apt-get update && \
-    apt-get install -y software-properties-common curl tini && \
-    add-apt-repository ppa:deadsnakes/ppa -y && \
-    apt-get update && \
-    apt-get install -y python3.12 python3.12-venv python3.12-distutils python3-pip && \
+    apt-get install -y python3 python3-pip curl && \
     pip install --no-cache-dir jupyterlab && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# === Tạo thư mục làm việc ===
-WORKDIR /workspace
-
-# === Copy entrypoint script ===
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-# === Mở port 8888 cho JupyterLab ===
+# Expose port JupyterLab
 EXPOSE 8888
 
-# === Dùng tini để xử lý tín hiệu sạch sẽ ===
-ENTRYPOINT ["/usr/bin/tini", "--"]
-
-# === Khi container khởi động thì chạy script ===
-CMD ["/entrypoint.sh"]
+# Sinh token và chạy JupyterLab
+CMD TOKEN=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16) && \
+    echo "🔐 Token: $TOKEN" && \
+    echo "🌐 Mở tại: http://localhost:8888/?token=$TOKEN" && \
+    jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token=$TOKEN
